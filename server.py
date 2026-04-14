@@ -30,14 +30,14 @@ def convert_md_to_docx(md_path: str, docx_path: str = None) -> str:
         return f"转换失败: {str(e)}"
 
 @mcp.tool()
-def extract_text_from_pdf(pdf_path: str, output_dir: str) -> str:
+def extract_text_from_pdf(pdf_path: str, output_dir: str = None) -> str:
     """
     【省钱高性价比方案】从 PDF 中提取文本块，并保留基础排版。
     不会转换图片，仅在 Markdown 中记录图片位置，供后续按需读取。
     
     参数:
         pdf_path: 必需，PDF 文件的绝对路径。
-        output_dir: 必需，输出 Markdown 文本的绝对目录路径。
+        output_dir: 可选，输出目录路径。若不填，工具将自动在 PDF 同级目录的 temp/ 文件夹中生成。
     """
     try:
         out_path = extract_pdf_content(pdf_path, output_dir)
@@ -53,7 +53,7 @@ def convert_pdf_to_images_fallback(pdf_path: str, output_dir: str = None) -> str
     
     参数:
         pdf_path: 必需，PDF 文件的绝对路径。
-        output_dir: 可选，输出图片的目录。
+        output_dir: 可选，输出图片的目录。若不填，工具将自动在 PDF 同级目录的 temp/ 文件夹中生成。
     """
     try:
         saved_images = pdf_to_images(pdf_path, output_dir, zoom=2.0)
