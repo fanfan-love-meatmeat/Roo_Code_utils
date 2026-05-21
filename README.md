@@ -9,4 +9,4 @@
 
 ## ⚙️ Roo Code 配置参考
 - **Command**: C:/Users/98514/.conda/envs/roo_mcp/python.exe
-- **Args**: ["D:/FJL/Projects/Roo_Code_utils/server.py"]
+- **Args**: ["D:/FJL/Projects/Kilo_Code_Gobal_Settings/Roo_Code_utils/server.py"]
