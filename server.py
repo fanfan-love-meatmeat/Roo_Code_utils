@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from tools.md_to_docx import parse_md_to_docx
 from tools.pdf_to_text import extract_pdf_content
 from tools.pdf_to_images import pdf_to_images
+from tools.docx_to_md import convert_docx_to_md as _convert_docx_to_md
 
 # 初始化 MCP Server
 mcp = FastMCP("Roo_Code_Utils")
@@ -60,6 +61,34 @@ def convert_pdf_to_images_fallback(pdf_path: str, output_dir: str = None) -> str
         return f"PDF 已转换为 {len(saved_images)} 张图片，保存在: {os.path.dirname(saved_images[0])}"
     except Exception as e:
         return f"图片转换失败: {str(e)}"
+
+@mcp.tool()
+def convert_docx_to_md(docx_path: str, output_md_path: str = None,
+                       image_dir: str = None) -> str:
+    """
+    将 DOCX 文件转换为 Markdown，公式转换为 LaTeX 文字（非图片引用），适合 Agent 读取。
+
+    公式处理策略：
+    - MathType/OLE 公式 → olefile 解包 oleObject.bin → MTEF Track 1 (TeX 元数据) / Track 2 (递归解析) → $$LaTeX$$
+    - OMML 原生公式 → XSLT 管道 (OMML→MathML→LaTeX) → $$LaTeX$$
+    - 行内/块级自动识别：MTEF 头部 Bit 0 位掩码判定 Inline / Display
+
+    其他特性：
+    - 普通图片：导出到 {原名}_md/figures/，Markdown 中以相对路径引用
+    - 表格内公式：自动降级为行内公式 $...$ 维持表格语法边界
+    - 修订模式兼容：接受 w:ins 插入、跳过 w:del 删除
+    - mc:AlternateContent 兼容：取 Choice 子节点
+    - 参考文献清洗：双语锚点定位 (参考文献/References) + 尾部 [N] 独立换行
+
+    参数:
+        docx_path:       必需，DOCX 文件的绝对路径。
+        output_md_path:  可选，输出 Markdown 文件路径。默认在 raw_md/{原名}_md/ 下生成。
+        image_dir:       可选，图片导出目录。默认 {原名}_md/。
+    """
+    try:
+        return _convert_docx_to_md(docx_path, output_md_path, image_dir)
+    except Exception as e:
+        return f"转换失败: {str(e)}"
 
 if __name__ == "__main__":
     # 以 stdio 模式运行 MCP 服务，供 Roo Code 等客户端调用
