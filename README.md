@@ -34,6 +34,19 @@ Roo_Code_utils/
 
 ---
 
+## 输入防御层
+
+所有 MCP 工具入口调用统一的 `_validate_input_file()` 校验函数，在底层引擎执行前拦截 Agent 路径幻觉：
+
+| 校验项 | 说明 |
+|---|---|
+| 路径存在性 | `os.path.isfile()` 拒绝目录和不存在路径 |
+| 扩展名白名单 | `convert_docx_to_md` 仅 `.docx`；`extract_text_from_pdf` / `convert_pdf_to_images_fallback` 仅 `.pdf`；`convert_md_to_docx` 仅 `.md` / `.markdown` |
+| 文件大小上限 | 100MB，防止大文件导致 OOM |
+| 错误传达 | 校验失败统一抛出 `ToolError`，附带自然语言纠错提示，供 AI Agent 自动修复参数后重试 |
+
+---
+
 ## 1. convert_docx_to_md — DOCX → Markdown（公式 → LaTeX）★
 
 将 Word 文档转换为纯 Markdown，公式转为 LaTeX 文字（非图片），适合无视觉 AI Agent 直接阅读。

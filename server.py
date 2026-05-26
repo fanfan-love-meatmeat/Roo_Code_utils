@@ -4,6 +4,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 
 # 导入你写好的底层处理逻辑
 from tools.md_to_docx import parse_md_to_docx
@@ -12,7 +13,76 @@ from tools.pdf_to_images import pdf_to_images
 from tools.docx_to_md import convert_docx_to_md as _convert_docx_to_md
 
 # 初始化 MCP Server
+# 注: mask_error_details 需独立安装 fastmcp 包 (pip install fastmcp)
+#     当前环境使用 mcp.server.fastmcp 内置版本，暂不支持该参数
 mcp = FastMCP("Roo_Code_Utils")
+
+# ============================================================================
+# 轻量输入防御层 — 拦截 Agent 路径幻觉，避免底层引擎崩溃
+# ============================================================================
+
+# 文件大小上限（100MB，防止 OOM）
+_MAX_FILE_SIZE = 100 * 1024 * 1024
+
+# 各工具允许的文件扩展名白名单
+_ALLOWED_EXTENSIONS = {
+    "convert_md_to_docx":           [".md", ".markdown"],
+    "extract_text_from_pdf":        [".pdf"],
+    "convert_pdf_to_images_fallback": [".pdf"],
+    "convert_docx_to_md":           [".docx"],
+}
+
+
+def _validate_input_file(file_path: str, tool_name: str) -> None:
+    """
+    在文件 I/O 前进行轻量输入防御。任何校验失败均 raise ToolError，
+    提供可指导 Agent 纠错的自然语言消息。
+
+    Args:
+        file_path: 用户/Agent 传入的文件路径
+        tool_name: 调用方工具名（用于查找扩展名白名单）
+
+    Raises:
+        ToolError: 路径为空、文件不存在、扩展名不合法、文件过大
+    """
+    # Step 1: 空值校验
+    if not file_path or not isinstance(file_path, str):
+        raise ToolError(
+            "未提供有效的文件路径。请指定一个本地文件的绝对路径，"
+            "例如 D:/documents/论文.docx"
+        )
+
+    # Step 2: 路径标准化（展开 ~ 和相对路径）
+    expanded = os.path.abspath(os.path.expanduser(file_path))
+
+    # Step 3: 文件存在性校验（isfile 比 exists 更严格，拒绝目录路径）
+    if not os.path.isfile(expanded):
+        raise ToolError(
+            f"文件不存在或不是有效文件: {file_path}。"
+            f"请检查路径拼写是否正确，并确认文件位于本地磁盘。"
+        )
+
+    # Step 4: 扩展名白名单校验（大小写不敏感）
+    allowed_exts = _ALLOWED_EXTENSIONS.get(tool_name, [])
+    if allowed_exts:
+        actual_ext = os.path.splitext(expanded)[1].lower()
+        if actual_ext not in allowed_exts:
+            allowed_str = " / ".join(allowed_exts)
+            raise ToolError(
+                f"不支持的文件类型: {actual_ext}。"
+                f"该工具仅接受 {allowed_str} 格式的文件，请传入正确的文件路径。"
+            )
+
+    # Step 5: 文件大小上限
+    file_size = os.path.getsize(expanded)
+    if file_size > _MAX_FILE_SIZE:
+        size_mb = file_size / (1024 * 1024)
+        limit_mb = _MAX_FILE_SIZE / (1024 * 1024)
+        raise ToolError(
+            f"文件过大: {size_mb:.1f}MB（限制 {limit_mb:.0f}MB）。"
+            f"请使用较小的文件或拆分为多个部分。"
+        )
+
 
 @mcp.tool()
 def convert_md_to_docx(md_path: str, docx_path: str = None) -> str:
@@ -24,11 +94,16 @@ def convert_md_to_docx(md_path: str, docx_path: str = None) -> str:
         md_path: 必需，Markdown 文件的绝对路径。
         docx_path: 可选，输出的 DOCX 文件绝对路径。如不填，默认在 md 同级目录生成。
     """
+    _validate_input_file(md_path, "convert_md_to_docx")
     try:
         out_path = parse_md_to_docx(md_path, docx_path)
         return f"转换成功！Word 文件已保存至: {out_path}"
-    except Exception as e:
-        return f"转换失败: {str(e)}"
+    except FileNotFoundError as e:
+        raise ToolError(f"文件未找到: {e}")
+    except PermissionError as e:
+        raise ToolError(f"文件访问被拒绝: {e}")
+    except Exception:
+        raise
 
 @mcp.tool()
 def extract_text_from_pdf(pdf_path: str, output_dir: str = None) -> str:
@@ -40,11 +115,16 @@ def extract_text_from_pdf(pdf_path: str, output_dir: str = None) -> str:
         pdf_path: 必需，PDF 文件的绝对路径。
         output_dir: 可选，输出目录路径。若不填，工具将自动在 PDF 同级目录的 temp/ 文件夹中生成。
     """
+    _validate_input_file(pdf_path, "extract_text_from_pdf")
     try:
         out_path = extract_pdf_content(pdf_path, output_dir)
         return f"PDF 文本提取成功！Markdown 文件已保存至: {out_path}。请优先阅读此文件获取信息。"
-    except Exception as e:
-        return f"PDF 提取失败: {str(e)}"
+    except FileNotFoundError as e:
+        raise ToolError(f"文件未找到: {e}")
+    except PermissionError as e:
+        raise ToolError(f"文件访问被拒绝: {e}")
+    except Exception:
+        raise
 
 @mcp.tool()
 def convert_pdf_to_images_fallback(pdf_path: str, output_dir: str = None) -> str:
@@ -56,11 +136,16 @@ def convert_pdf_to_images_fallback(pdf_path: str, output_dir: str = None) -> str
         pdf_path: 必需，PDF 文件的绝对路径。
         output_dir: 可选，输出图片的目录。若不填，工具将自动在 PDF 同级目录的 temp/ 文件夹中生成。
     """
+    _validate_input_file(pdf_path, "convert_pdf_to_images_fallback")
     try:
         saved_images = pdf_to_images(pdf_path, output_dir, zoom=2.0)
         return f"PDF 已转换为 {len(saved_images)} 张图片，保存在: {os.path.dirname(saved_images[0])}"
-    except Exception as e:
-        return f"图片转换失败: {str(e)}"
+    except FileNotFoundError as e:
+        raise ToolError(f"文件未找到: {e}")
+    except PermissionError as e:
+        raise ToolError(f"文件访问被拒绝: {e}")
+    except Exception:
+        raise
 
 @mcp.tool()
 def convert_docx_to_md(docx_path: str, output_md_path: str = None,
@@ -85,10 +170,15 @@ def convert_docx_to_md(docx_path: str, output_md_path: str = None,
         output_md_path:  可选，输出 Markdown 文件路径。默认在 raw_md/{原名}_md/ 下生成。
         image_dir:       可选，图片导出目录。默认 {原名}_md/。
     """
+    _validate_input_file(docx_path, "convert_docx_to_md")
     try:
         return _convert_docx_to_md(docx_path, output_md_path, image_dir)
-    except Exception as e:
-        return f"转换失败: {str(e)}"
+    except FileNotFoundError as e:
+        raise ToolError(f"文件未找到: {e}")
+    except PermissionError as e:
+        raise ToolError(f"文件访问被拒绝: {e}")
+    except Exception:
+        raise
 
 if __name__ == "__main__":
     # 以 stdio 模式运行 MCP 服务，供 Roo Code 等客户端调用

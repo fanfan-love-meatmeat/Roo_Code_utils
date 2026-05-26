@@ -1,6 +1,11 @@
 # 更新日志 (CHANGELOG)
 
 ## 2026-05-26
+- **新增输入防御层**：`server.py` 增加 `_validate_input_file()` 统一校验
+  - 路径存在性与合法性（`os.path.isfile` 拒绝目录和不存在路径）
+  - 扩展名白名单（`.md` / `.pdf` / `.docx`，大小写不敏感）
+  - 文件大小上限（100MB，防止 OOM）
+  - 4 个 MCP 工具入口异常处理从泛化 `except Exception` 重构为精准 `ToolError` 抛出，使 AI Agent 可根据自然语言错误信息自我纠错
 - **文档重构：README.md 全面扩增与规范化**
   - 新增项目目录结构图，清晰展示 tools/ 下各模块职责
   - 新增"MCP 工具一览"总览表，一目了然 4 个工具的输入输出方向
