@@ -117,15 +117,13 @@ def patent_md_to_docx(md_path: str, docx_path: str = None,
     
     参数:
         md_path:  必需，专利 Markdown 文件的绝对路径。
-        docx_path: 可选，输出的 DOCX 文件绝对路径（含 `_{时间戳}_v{版本}` 命名）。
-                   如不填，自动生成为 `{原名}_{YYYYMMDD_HHMM}_v{版本}.docx`。
-        version:   可选，版本号，如 "v1.0", "v1.1", "v2.0"。
-                   如不填，自动从 MD 文件名提取版本号（如 `_v2.4.md` → `v2.4`）。
-                   若 MD 文件名也无版本号，默认 `v1.0`。
+        docx_path: 可选，输出的 DOCX 文件绝对路径。
+                   如不填，自动生成为 `{MD完整文件名去扩展名}_{YYYYMMDD_HHMM}.docx`。
+        version:   保留参数，自动路径下忽略（版本已含在 MD 文件名中）。
     
     命名规则:
-        `{原名}_{YYYYMMDD_HHMM}_v{大版本}.{小版本}.docx`
-        版本号与输入 MD 文件名中的版本号一致，不自动递增。
+        `{MD文件名}_{年月日时分}.docx`
+        例: `完整专利申请书_20260531_2010_v2.4.md` → `完整专利申请书_20260531_2010_v2.4_20260601_0016.docx`
     """
     import os, re, glob, datetime
     _validate_input_file(md_path, "patent_md_to_docx")
@@ -137,28 +135,12 @@ def patent_md_to_docx(md_path: str, docx_path: str = None,
         filename = os.path.basename(md_path)
         now = datetime.datetime.now().strftime('%Y%m%d_%H%M')
 
-        # 从 MD 文件名提取版本号 (如 _v2.4.md → v2.4)
-        # 同时剥离版本后缀得到干净的文件基名
-        base_name = os.path.splitext(filename)[0]
-        if version is None:
-            m = re.search(r'_v(\d+)\.(\d+)\.md$', filename)
-            if m:
-                version = f'v{m.group(1)}.{m.group(2)}'
-                base_name = filename[:m.start()]  # 切掉 _v2.4.md
-            else:
-                version = 'v1.0'
-
         if docx_path is None:
-            out_dir = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                'patent_docx'
-            )
-            if not os.path.isdir(out_dir):
-                out_dir = os.path.dirname(os.path.abspath(md_path))
-
+            md_dir = os.path.dirname(os.path.abspath(md_path))
+            out_dir = os.path.join(os.path.dirname(md_dir), 'patent_docx')
             docx_path = os.path.join(
                 out_dir,
-                f'{base_name}_{now}_{version}.docx'
+                f'{os.path.splitext(filename)[0]}_{now}.docx'
             )
 
         os.makedirs(os.path.dirname(os.path.abspath(docx_path)), exist_ok=True)

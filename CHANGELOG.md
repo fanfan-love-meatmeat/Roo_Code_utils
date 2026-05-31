@@ -1,5 +1,10 @@
 # 更新日志 (CHANGELOG)
 
+## 2026-06-01
+- **路径命名逻辑简化** (`server.py`)：移除 `patent_md_to_docx` 的 `version` 参数及版本号自动提取，改为 `{MD完整文件名}_{时间戳}.docx` 直接命名；输出目录从项目根 `patent_docx/` 调整为 MD 文件上层的 `patent_docx/`
+- **MathType 幂等性防御** (`tools/patent_style_utils.py`)：在 `add_display_formula_placeholder` 和 `add_rich_paragraph` 中新增 LaTeX 定界符（`\lfloor`/`\rfloor`/`\lceil`/`\rceil`）的 `\left`/`\right` 自动包装，防止 MathType 宏因重复转换导致定界符不匹配而失败
+- **开发档案迭代**：用新版 S1/S2 分层审计报告目录 + T6 设计文档替代旧版单文件审计报告；新增 `test/` 测试目录
+
 ## 2026-05-31
 - **新增 MCP 工具 `patent_md_to_docx`**：将专利 Markdown 转换为符合 CNIPA 规范的 DOCX
   - 新增 `tools/patent_md_to_docx.py`：底层转换引擎，处理 heading 层级、段落编号 `[0001]`、权利要求、公式占位

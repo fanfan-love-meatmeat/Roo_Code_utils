@@ -164,6 +164,12 @@ def add_step_paragraph(doc: Document, step_label: str, body: str):
 
 def add_display_formula_placeholder(doc: Document, latex_text: str):
     """块级公式占位。居中纯黑文本，保留 $ 分隔符供 MathType 宏捕获。"""
+    # MathType 幂等性防御：裸定界符 -> \left/\right 包装
+    latex_text = latex_text.replace(r'\left\lfloor', r'\lfloor').replace(r'\right\rfloor', r'\rfloor')
+    latex_text = latex_text.replace(r'\lfloor', r'\left\lfloor').replace(r'\rfloor', r'\right\rfloor')
+    latex_text = latex_text.replace(r'\left\lceil', r'\lceil').replace(r'\right\rceil', r'\rceil')
+    latex_text = latex_text.replace(r'\lceil', r'\left\lceil').replace(r'\rceil', r'\right\rceil')
+
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(6)
@@ -205,6 +211,12 @@ def add_rich_paragraph(doc: Document, inline_token, cn_font='宋体',
         txt = child.content
         if not txt.strip():
             continue
+
+        # MathType 幂等性防御：裸定界符 -> \left/\right 包装
+        txt = txt.replace(r'\left\lfloor', r'\lfloor').replace(r'\right\rfloor', r'\rfloor')
+        txt = txt.replace(r'\lfloor', r'\left\lfloor').replace(r'\rfloor', r'\right\rfloor')
+        txt = txt.replace(r'\left\lceil', r'\lceil').replace(r'\right\rceil', r'\rceil')
+        txt = txt.replace(r'\lceil', r'\left\lceil').replace(r'\rceil', r'\right\rceil')
 
         run = p.add_run(txt)
         run.bold = in_strong
