@@ -8,6 +8,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 # 导入你写好的底层处理逻辑
 from tools.md_to_docx import parse_md_to_docx
+from tools.patent_md_to_docx import build_patent_docx as _build_patent_docx
 from tools.pdf_to_text import extract_pdf_content
 from tools.pdf_to_images import pdf_to_images
 from tools.docx_to_md import convert_docx_to_md as _convert_docx_to_md
@@ -27,6 +28,7 @@ _MAX_FILE_SIZE = 100 * 1024 * 1024
 # 各工具允许的文件扩展名白名单
 _ALLOWED_EXTENSIONS = {
     "convert_md_to_docx":           [".md", ".markdown"],
+    "patent_md_to_docx":            [".md", ".markdown"],
     "extract_text_from_pdf":        [".pdf"],
     "convert_pdf_to_images_fallback": [".pdf"],
     "convert_docx_to_md":           [".docx"],
@@ -104,6 +106,71 @@ def convert_md_to_docx(md_path: str, docx_path: str = None) -> str:
         raise ToolError(f"文件访问被拒绝: {e}")
     except Exception:
         raise
+
+@mcp.tool()
+def patent_md_to_docx(md_path: str, docx_path: str = None,
+                       version: str = None) -> str:
+    """
+    将专利 Markdown (含 heading 层级、段落编号 [0001]、权利要求、公式占位) 转换为符合 CNIPA 规范的 DOCX。
+    自动设置页边距 (左25/上25/右15/下15mm)、宋体+Times New Roman、首行缩进 2 字符。
+    公式以纯黑文本保留 $ 分隔符，兼容 MathType 宏捕获。
+    
+    参数:
+        md_path:  必需，专利 Markdown 文件的绝对路径。
+        docx_path: 可选，输出的 DOCX 文件绝对路径（含 `_{时间戳}_v{版本}` 命名）。
+                   如不填，自动生成为 `{原名}_{YYYYMMDD_HHMM}_v{版本}.docx`。
+        version:   可选，版本号，如 "v1.0", "v1.1", "v2.0"。
+                   如不填，自动从 MD 文件名提取版本号（如 `_v2.4.md` → `v2.4`）。
+                   若 MD 文件名也无版本号，默认 `v1.0`。
+    
+    命名规则:
+        `{原名}_{YYYYMMDD_HHMM}_v{大版本}.{小版本}.docx`
+        版本号与输入 MD 文件名中的版本号一致，不自动递增。
+    """
+    import os, re, glob, datetime
+    _validate_input_file(md_path, "patent_md_to_docx")
+    try:
+        with open(md_path, 'r', encoding='utf-8') as f:
+            md_text = f.read()
+        doc = _build_patent_docx(md_text)
+
+        filename = os.path.basename(md_path)
+        now = datetime.datetime.now().strftime('%Y%m%d_%H%M')
+
+        # 从 MD 文件名提取版本号 (如 _v2.4.md → v2.4)
+        # 同时剥离版本后缀得到干净的文件基名
+        base_name = os.path.splitext(filename)[0]
+        if version is None:
+            m = re.search(r'_v(\d+)\.(\d+)\.md$', filename)
+            if m:
+                version = f'v{m.group(1)}.{m.group(2)}'
+                base_name = filename[:m.start()]  # 切掉 _v2.4.md
+            else:
+                version = 'v1.0'
+
+        if docx_path is None:
+            out_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'patent_docx'
+            )
+            if not os.path.isdir(out_dir):
+                out_dir = os.path.dirname(os.path.abspath(md_path))
+
+            docx_path = os.path.join(
+                out_dir,
+                f'{base_name}_{now}_{version}.docx'
+            )
+
+        os.makedirs(os.path.dirname(os.path.abspath(docx_path)), exist_ok=True)
+        doc.save(docx_path)
+        return f'转换成功！专利 DOCX 已保存至: {docx_path}'
+
+    except FileNotFoundError as e:
+        raise ToolError(f"文件未找到: {e}")
+    except PermissionError as e:
+        raise ToolError(f"文件访问被拒绝: {e}")
+    except Exception as e:
+        raise ToolError(f"转换失败: {e}")
 
 @mcp.tool()
 def extract_text_from_pdf(pdf_path: str, output_dir: str = None) -> str:

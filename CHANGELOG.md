@@ -1,6 +1,17 @@
 # 更新日志 (CHANGELOG)
 
+## 2026-05-31
+- **新增 MCP 工具 `patent_md_to_docx`**：将专利 Markdown 转换为符合 CNIPA 规范的 DOCX
+  - 新增 `tools/patent_md_to_docx.py`：底层转换引擎，处理 heading 层级、段落编号 `[0001]`、权利要求、公式占位
+  - 新增 `tools/patent_style_utils.py`：专利文档样式工具（宋体+Times New Roman、页边距 左25/上25/右15/下15mm、首行缩进 2 字符）
+  - `server.py` 注册 `patent_md_to_docx` 端点，含输入校验、版本号自动提取（`_v2.4.md` → `v2.4`）、输出命名规则
+- **开发档案补充**：纳入 `report/patent_md_to_docx/` 完整开发记录（CTO 设计 T1-T5 + 审记 + 实现记录）；补全 `report/docx_to_md/` 中 D2 日报、审计报告目录及 D2 实现记录
+
 ## 2026-05-26
+- **开发档案归档**：纳入 `report/docx_to_md/` 完整开发记录
+  - `00_CTO/`：顶层设计文档（D1-D2 开发日报 + T1-T4 技术专项）
+  - `01_Auditor/`：审计报告（项目现状与工作总结）
+  - `02_Implement/`：实现记录，含各阶段的详细设计说明、自检报告、回归测试脚本和调试工具
 - **新增输入防御层**：`server.py` 增加 `_validate_input_file()` 统一校验
   - 路径存在性与合法性（`os.path.isfile` 拒绝目录和不存在路径）
   - 扩展名白名单（`.md` / `.pdf` / `.docx`，大小写不敏感）
