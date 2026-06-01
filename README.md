@@ -7,14 +7,16 @@
 ```
 Roo_Code_utils/
 ├── server.py              # MCP 服务入口（FastMCP）
-├── tools/                 # 工具模块
-│   ├── md_to_docx.py      # Markdown → DOCX（学术排版）
-│   ├── docx_to_md.py      # DOCX → Markdown（公式 → LaTeX）★
-│   ├── mtef_fast.py       # MTEF Track 1 解析器（TeX 元数据提取）
-│   ├── mtef_parser.py     # MTEF Track 2 解析器（递归降级）
-│   ├── pdf_to_text.py     # PDF → 文本提取（省 Token）
-│   ├── pdf_to_images.py   # PDF → PNG 渲染（视觉后备）
-│   └── xslt/              # XSLT 样式表（OMML → MathML → LaTeX）
+├── tools/                   # 工具模块
+│   ├── md_to_docx.py        # Markdown → DOCX（学术排版）
+│   ├── docx_to_md.py        # DOCX → Markdown（公式 → LaTeX）★
+│   ├── patent_md_to_docx.py # 专利 Markdown → CNIPA DOCX
+│   ├── patent_style_utils.py# 专利排版引擎（字体/边距/段落构建）
+│   ├── mtef_fast.py         # MTEF Track 1 解析器（TeX 元数据提取）
+│   ├── mtef_parser.py       # MTEF Track 2 解析器（递归降级）
+│   ├── pdf_to_text.py       # PDF → 文本提取（省 Token）
+│   ├── pdf_to_images.py     # PDF → PNG 渲染（视觉后备）
+│   └── xslt/                # XSLT 样式表（OMML → MathML → LaTeX）
 ├── CHANGELOG.md           # 更新日志
 ├── environment_backup.md  # 环境备份说明
 ├── server.py              # MCP 服务入口
@@ -23,12 +25,13 @@ Roo_Code_utils/
 
 ## MCP 工具一览
 
-本服务通过 MCP 协议向 Roo Code / Claude 等 AI 客户端暴露 4 个工具：
+本服务通过 MCP 协议向 Roo Code / Claude 等 AI 客户端暴露 5 个工具：
 
 | 工具名 | 方向 | 说明 |
 |---|---|---|
 | `convert_docx_to_md` | DOCX → MD | Word 转 Markdown，MathType/OMML 公式 → LaTeX |
 | `convert_md_to_docx` | MD → DOCX | Markdown 转 Word，中文/英文/表格学术排版 |
+| `patent_md_to_docx` | 专利 MD → DOCX | 专利 Markdown 转 CNIPA 规范 Word |
 | `extract_text_from_pdf` | PDF → MD | 文本块提取，省 Token（推荐首选） |
 | `convert_pdf_to_images_fallback` | PDF → PNG | 逐页渲染图片（仅当文本提取不够用） |
 
@@ -41,7 +44,7 @@ Roo_Code_utils/
 | 校验项 | 说明 |
 |---|---|
 | 路径存在性 | `os.path.isfile()` 拒绝目录和不存在路径 |
-| 扩展名白名单 | `convert_docx_to_md` 仅 `.docx`；`extract_text_from_pdf` / `convert_pdf_to_images_fallback` 仅 `.pdf`；`convert_md_to_docx` 仅 `.md` / `.markdown` |
+| 扩展名白名单 | `convert_docx_to_md` 仅 `.docx`；`convert_md_to_docx` / `patent_md_to_docx` 仅 `.md` / `.markdown`；`extract_text_from_pdf` / `convert_pdf_to_images_fallback` 仅 `.pdf` |
 | 文件大小上限 | 100MB，防止大文件导致 OOM |
 | 错误传达 | 校验失败统一抛出 `ToolError`，附带自然语言纠错提示，供 AI Agent 自动修复参数后重试 |
 
@@ -122,7 +125,42 @@ Roo_Code_utils/
 
 ---
 
-## 3. extract_text_from_pdf — PDF 文本提取（省钱方案）
+## 3. patent_md_to_docx — 专利 Markdown → CNIPA 规范 DOCX
+
+将专利 Markdown 转换为符合中国国家知识产权局 (CNIPA) 规范的 Word 文档。
+
+- **页边距**：左 25mm / 上 25mm / 右 15mm / 下 15mm
+- **正文**：宋体 12pt + Times New Roman，首行缩进 2 字符，行距 1.5
+- **五大书标题**：楷体 18pt 居中，3 空格字距 + 下边框 + 自动分页
+- **编号段落**：`[0001]` 编号加粗，正文标准缩进
+- **权利要求**：有序列表，编号加粗，无首行缩进
+- **公式占位**：居中纯黑文本保留 `$` 分隔符，兼容 MathType 宏（含定界符幂等性防御）
+- **附图着陆**：自动追加"说明书附图"空白区供粘贴附图
+
+```json
+{
+  "patent_md_to_docx": {
+    "md_path": "D:/path/to/专利申请书.md"
+  }
+}
+```
+
+可选参数：
+
+```json
+{
+  "patent_md_to_docx": {
+    "md_path": "D:/path/to/专利申请书.md",
+    "docx_path": "D:/output/专利申请书.docx"
+  }
+}
+```
+
+输出命名规则（未指定 `docx_path` 时自动生成）：`{MD文件名}_{年月日时分}.docx`，生成至 MD 上层的 `patent_docx/` 目录。
+
+---
+
+## 4. extract_text_from_pdf — PDF 文本提取（省钱方案）
 
 从 PDF 中提取文本块，保留基础排版结构。不转换图片，仅在 Markdown 中标注图片位置供后续按需读取。
 
@@ -149,7 +187,7 @@ Roo_Code_utils/
 
 ---
 
-## 4. convert_pdf_to_images_fallback — PDF → 图片（视觉后备）
+## 5. convert_pdf_to_images_fallback — PDF → 图片（视觉后备）
 
 将 PDF 每一页渲染为高清 PNG 图片（2x 缩放）。
 
@@ -189,8 +227,19 @@ Roo_Code_utils/
 conda create -n roo_mcp python=3.10 -y
 conda activate roo_mcp
 
-# 安装依赖
-pip install mcp pymupdf python-docx lxml Pillow olefile
+# 安装依赖（requirements.txt 为唯一权威清单）
+pip install -r requirements.txt
+```
+
+`requirements.txt` 内容：
+
+```
+mcp==1.27.0
+python-docx==1.2.0
+markdown-it-py==4.2.0
+pymupdf==1.27.2.2
+lxml==6.0.4
+olefile==0.47
 ```
 
 > 详细环境说明见 [`environment_backup.md`](environment_backup.md)
@@ -206,4 +255,7 @@ python tools/docx_to_md.py "D:/path/to/论文.docx"
 
 # Markdown → DOCX
 python tools/md_to_docx.py "D:/path/to/报告.md"
+
+# 专利 Markdown → CNIPA DOCX
+python tools/patent_md_to_docx.py "D:/path/to/专利申请书.md"
 ```

@@ -1,0 +1,6 @@
+mcp==1.27.0
+python-docx==1.2.0
+markdown-it-py==4.2.0
+pymupdf==1.27.2.2
+lxml==6.0.4
+olefile==0.47

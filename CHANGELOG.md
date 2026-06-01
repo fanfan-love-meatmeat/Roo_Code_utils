@@ -4,6 +4,9 @@
 - **路径命名逻辑简化** (`server.py`)：移除 `patent_md_to_docx` 的 `version` 参数及版本号自动提取，改为 `{MD完整文件名}_{时间戳}.docx` 直接命名；输出目录从项目根 `patent_docx/` 调整为 MD 文件上层的 `patent_docx/`
 - **MathType 幂等性防御** (`tools/patent_style_utils.py`)：在 `add_display_formula_placeholder` 和 `add_rich_paragraph` 中新增 LaTeX 定界符（`\lfloor`/`\rfloor`/`\lceil`/`\rceil`）的 `\left`/`\right` 自动包装，防止 MathType 宏因重复转换导致定界符不匹配而失败
 - **开发档案迭代**：用新版 S1/S2 分层审计报告目录 + T6 设计文档替代旧版单文件审计报告；新增 `test/` 测试目录
+- **文档体系补全** (`README.md`)：新增 `patent_md_to_docx` 完整使用章节（API 示例、可选参数、输出命名规则）；工具一览从 4 项更新为 5 项；项目目录树补充 `patent_md_to_docx.py` 和 `patent_style_utils.py`
+- **依赖规范化**：新增 `requirements.txt` 锁定精确版本作为唯一权威源；`README.md` 和 `environment_backup.md` 统一改为 `pip install -r requirements.txt` 安装方式；环境文档扩充模块表至 6 项完整清单并移除已废弃的 OCR 依赖引用
+- **开发档案**：新增 D1 开发日报 (`00_CTO/D1.md`) 及 D1 实现记录 (`02_Implement/D1/`)
 
 ## 2026-05-31
 - **新增 MCP 工具 `patent_md_to_docx`**：将专利 Markdown 转换为符合 CNIPA 规范的 DOCX
